@@ -1,0 +1,62 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Señas - prototipo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: Arial, sans-serif; display:flex; flex-direction:column; align-items:center; gap:10px; padding:20px; }
+    video { width: 320px; height: 240px; background:#000; transform: scaleX(-1); }
+    #label { font-size: 24px; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h2>Demo reconocimiento de señas - prototipo</h2>
+  <video id="video" autoplay playsinline></video>
+  <div id="label">Estado: esperando cámara...</div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.8.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
+  <script>
+    const video = document.getElementById('video');
+    const label = document.getElementById('label');
+    let model, maxPredictions;
+
+    async function startCamera() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        video.srcObject = stream;
+        label.textContent = 'Cámara activada. Cargando modelo...';
+        await initModel();
+      } catch (err) {
+        label.textContent = 'Error de cámara: ' + err.message;
+      }
+    }
+
+    async function initModel() {
+      const modelURL = "model/model.json";
+      const metadataURL = "model/metadata.json";
+      model = await tmImage.load(modelURL, metadataURL);
+      maxPredictions = model.getTotalClasses();
+      label.textContent = 'Modelo cargado correctamente';
+      predictLoop();
+    }
+
+    async function predictLoop() {
+      const prediction = await model.predict(video);
+      let bestClass = prediction[0].className;
+      let bestProb = prediction[0].probability;
+      for (let i = 1; i < maxPredictions; i++) {
+        if (prediction[i].probability > bestProb) {
+          bestProb = prediction[i].probability;
+          bestClass = prediction[i].className;
+        }
+      }
+      label.textContent = `Seña: ${bestClass} (${(bestProb*100).toFixed(1)}%)`;
+      requestAnimationFrame(predictLoop);
+    }
+
+    startCamera();
+  </script>
+</body>
+</html>
